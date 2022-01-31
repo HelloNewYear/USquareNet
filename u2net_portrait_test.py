@@ -1,4 +1,8 @@
 import os
+import glob
+import numpy as np
+from PIL import Image
+
 from skimage import io, transform
 import torch
 import torchvision
@@ -9,41 +13,33 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms#, utils
 # import torch.optim as optim
 
-import numpy as np
-from PIL import Image
-import glob
-
 from data_loader import RescaleT
 from data_loader import ToTensor
 from data_loader import ToTensorLab
 from data_loader import SalObjDataset
 
-from model import U2NET # full size version 173.6 MB
-from model import U2NETP # small version u2net 4.7 MB
+from model import U2NET
+from model import U2NETP
 
 # normalize the predicted SOD probability map
 def normPRED(d):
     ma = torch.max(d)
     mi = torch.min(d)
-
     dn = (d-mi)/(ma-mi)
-
     return dn
 
-def save_output(image_name,pred,d_dir):
-
-    predict = pred
-    predict = predict.squeeze()
+def save_output(image_name, pred, d_dir):
+    predict = pred.squeeze()
     predict_np = predict.cpu().data.numpy()
 
     im = Image.fromarray(predict_np*255).convert('RGB')
-    img_name = image_name.split(os.sep)[-1]
+    image_name = image_name.split(os.sep)[-1]
     image = io.imread(image_name)
-    imo = im.resize((image.shape[1],image.shape[0]),resample=Image.BILINEAR)
+    imo = im.resize((image.shape[1], image.shape[0]), resample=Image.BILINEAR)
 
     pb_np = np.array(imo)
 
-    aaa = img_name.split(".")
+    aaa = image_name.split(".")
     bbb = aaa[0:-1]
     imidx = bbb[0]
     for i in range(1,len(bbb)):
@@ -52,24 +48,21 @@ def save_output(image_name,pred,d_dir):
     imo.save(d_dir+'/'+imidx+'.png')
 
 def main():
-
     # --------- 1. get image path and name ---------
-    model_name='u2net_portrait'#u2netp
+    model_name='u2net_portrait'
+    model_dir = './u2net_portrait.pth'
 
-
-    image_dir = './test_data/test_portrait_images/portrait_im'
-    prediction_dir = './test_data/test_portrait_images/portrait_results'
+    image_dir = './test_data/portrait_im'
+    image_name_list = glob.glob(image_dir+'/*')
+    print("Number of images: ", len(image_name_list))
+    #prediction_dir = './test_data/portrait_results'
+    prediction_dir = input() 
     if(not os.path.exists(prediction_dir)):
         os.mkdir(prediction_dir)
 
-    model_dir = './saved_models/u2net_portrait/u2net_portrait.pth'
-
-    img_name_list = glob.glob(image_dir+'/*')
-    print("Number of images: ", len(img_name_list))
-
     # --------- 2. dataloader ---------
     #1. dataloader
-    test_salobj_dataset = SalObjDataset(img_name_list = img_name_list,
+    test_salobj_dataset = SalObjDataset(image_name_list = image_name_list,
                                         lbl_name_list = [],
                                         transform=transforms.Compose([RescaleT(512),
                                                                       ToTensorLab(flag=0)])
@@ -80,9 +73,8 @@ def main():
                                         num_workers=1)
 
     # --------- 3. model define ---------
-
-    print("...load U2NET---173.6 MB")
-    net = U2NET(3,1)
+    print("...load U2NET---")
+    net = U2NET(3, 1)
 
     net.load_state_dict(torch.load(model_dir))
     if torch.cuda.is_available():
@@ -91,8 +83,7 @@ def main():
 
     # --------- 4. inference for each image ---------
     for i_test, data_test in enumerate(test_salobj_dataloader):
-
-        print("inferencing:",img_name_list[i_test].split(os.sep)[-1])
+        print("inferencing:", image_name_list[i_test].split(os.sep)[-1])
 
         inputs_test = data_test['image']
         inputs_test = inputs_test.type(torch.FloatTensor)
@@ -101,15 +92,13 @@ def main():
             inputs_test = Variable(inputs_test.cuda())
         else:
             inputs_test = Variable(inputs_test)
-
         d1,d2,d3,d4,d5,d6,d7= net(inputs_test)
 
         # normalization
         pred = 1.0 - d1[:,0,:,:]
         pred = normPRED(pred)
-
         # save results to test_results folder
-        save_output(img_name_list[i_test],pred,prediction_dir)
+        save_output(image_name_list[i_test], pred, prediction_dir)
 
         del d1,d2,d3,d4,d5,d6,d7
 
