@@ -1,12 +1,12 @@
-import cv2
-import torch
-from model import U2NET
-from torch.autograd import Variable
-import numpy as np
-from glob import glob
 import os
+import cv2
+import numpy as np
+import torch
+from torch.autograd import Variable
+from model import U2NET
+from glob import glob
 
-def detect_single_face(face_cascade,img):
+def detect_single_face(face_cascade, img):
     # Convert into grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -17,11 +17,10 @@ def detect_single_face(face_cascade,img):
         return None
 
     # filter to keep the largest face
-    wh = 0
-    idx = 0
-    for i in range(0,len(faces)):
+    wh = 0, idx = 0
+    for i in range(0, len(faces)):
         (x,y,w,h) = faces[i]
-        if(wh<w*h):
+        if(wh < w*h):
             idx = i
             wh = w*h
 
@@ -35,7 +34,7 @@ def crop_face(img, face):
         return img
     (x, y, w, h) = face
 
-    height,width = img.shape[0:2]
+    height, width = img.shape[0:2]
 
     # crop the face with a bigger bbox
     hmw = h - w
@@ -67,10 +66,9 @@ def crop_face(img, face):
         b = bottom-height
         bottom = height
 
-
-    im_face = img[top:bottom,left:right]
+    im_face = img[top:bottom, left:right]
     if(len(im_face.shape)==2):
-        im_face = np.repeat(im_face[:,:,np.newaxis],(1,1,3))
+        im_face = np.repeat(im_face[:,:,np.newaxis], (1,1,3))
 
     im_face = np.pad(im_face,((t,b),(l,r),(0,0)),mode='constant',constant_values=((255,255),(255,255),(255,255)))
 
@@ -91,15 +89,12 @@ def crop_face(img, face):
 def normPRED(d):
     ma = torch.max(d)
     mi = torch.min(d)
-
     dn = (d-mi)/(ma-mi)
-
     return dn
 
 def inference(net,input):
-
     # normalize the input
-    tmpImg = np.zeros((input.shape[0],input.shape[1],3))
+    tmpImg = np.zeros((input.shape[0], input.shape[1],3))
     input = input/np.max(input)
 
     tmpImg[:,:,0] = (input[:,:,2]-0.406)/0.225

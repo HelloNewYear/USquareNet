@@ -53,16 +53,15 @@ def main():
     model_dir = './u2net_portrait.pth'
 
     image_dir = './test_data/portrait_im'
-    image_name_list = glob.glob(image_dir+'/*')
-    print("Number of images: ", len(image_name_list))
-    #prediction_dir = './test_data/portrait_results'
-    prediction_dir = input() 
+    img_name_list = glob.glob(image_dir+'/*')
+    print("Number of images: ", len(img_name_list))
+    prediction_dir = './test_data/portrait_results'
     if(not os.path.exists(prediction_dir)):
         os.mkdir(prediction_dir)
 
     # --------- 2. dataloader ---------
     #1. dataloader
-    test_salobj_dataset = SalObjDataset(image_name_list = image_name_list,
+    test_salobj_dataset = SalObjDataset(img_name_list = img_name_list,
                                         lbl_name_list = [],
                                         transform=transforms.Compose([RescaleT(512),
                                                                       ToTensorLab(flag=0)])
@@ -83,7 +82,7 @@ def main():
 
     # --------- 4. inference for each image ---------
     for i_test, data_test in enumerate(test_salobj_dataloader):
-        print("inferencing:", image_name_list[i_test].split(os.sep)[-1])
+        print("inferencing:", img_name_list[i_test].split(os.sep)[-1])
 
         inputs_test = data_test['image']
         inputs_test = inputs_test.type(torch.FloatTensor)
@@ -98,7 +97,7 @@ def main():
         pred = 1.0 - d1[:,0,:,:]
         pred = normPRED(pred)
         # save results to test_results folder
-        save_output(image_name_list[i_test], pred, prediction_dir)
+        save_output(img_name_list[i_test], pred, prediction_dir)
 
         del d1,d2,d3,d4,d5,d6,d7
 
